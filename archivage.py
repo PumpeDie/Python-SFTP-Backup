@@ -1,97 +1,112 @@
-# Vous devez réaliser un système d'archivage qui permet de récupérer un fichier .zip en https sur un serveur Web 
-# et de l'archiver sur un serveur distant avec une durée de conservation paramètrable. 
-# L'URL du fichier .zip à récupérer est toujours la même.
+import time
+import requests
+import zipfile
+import os
+import datetime
+import shutil
+import paramiko
+import logging
+import socket
 
-# v1.0
-
-
-import requests;
-import zipfile;
-import os;
-import datetime;
-import time;
-import shutil;
+# Configuration des logs
+logging.basicConfig(filename='archivage.log', level=logging.INFO)
 
 # Fonction pour télécharger le fichier zip
 def download_file(url, filename):
-    response = requests.get(url, allow_redirects=True, stream=True)
-    
-    # Check if the request was successful
-    if response.status_code == 200:
-        # Write the contents of the response to a file in binary mode
+    try:
+        response = requests.get(url, allow_redirects=True, stream=True)
+        response.raise_for_status()  # Vérifie les erreurs HTTP
+
         with open(filename, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
-        
-        print(f'Fichier {filename} téléchargé avec succès')
-    else:
-        print(f'Erreur lors du téléchargement du fichier {filename} avec le code de statut {response.status_code}')
 
+        logging.info(f'Fichier {filename} téléchargé avec succès')
+    except requests.RequestException as e:
+        logging.error(f'Erreur lors du téléchargement du fichier {filename}: {e}')
 
-# Fonction pour dezipper l'archive zip
+# Fonction pour dézipper l'archive zip
 def unzip_file(filename, extract_to):
-    # Check if the file is a zip file
-    if filename.endswith('.zip'):
-        # Verify if the file is a valid zip file
-        try:
-            with zipfile.ZipFile(filename, 'r') as zip_ref:
-                zip_ref.extractall(extract_to)
-            print(f'Contenu de l\'archive {filename} extrait avec succès')
-        except zipfile.BadZipFile:
-            print(f'Le fichier {filename} n\'est pas un fichier zip valide')
-    else:
-        print(f'Le fichier {filename} n\'est pas un fichier zip')
-
+    try:
+        with zipfile.ZipFile(filename, 'r') as zip_ref:
+            zip_ref.extractall(extract_to)
+        logging.info(f'Contenu de l\'archive {filename} extrait avec succès')
+    except (zipfile.BadZipFile, FileNotFoundError) as e:
+        logging.error(f'Erreur lors de l\'extraction du fichier {filename}: {e}')
 
 # Fonction pour comparer deux fichiers
 def compare_files(file1, file2):
-    # Read the contents of the files in binary mode
-    with open(file1, 'rb') as f1:
-        content1 = f1.read()
-    
-    with open(file2, 'rb') as f2:
-        content2 = f2.read()
-    
-    # Compare the contents
-    if content1 == content2:
-        print(f'Les fichiers {file1} et {file2} sont identiques')
-        return True
-    else:
-        print(f'Les fichiers {file1} et {file2} sont différents')
+    try:
+        with open(file1, 'rb') as f1, open(file2, 'rb') as f2:
+            content1 = f1.read()
+            content2 = f2.read()
+
+        if content1 == content2:
+            logging.info(f'Les fichiers {file1} et {file2} sont identiques')
+            return True
+        else:
+            logging.info(f'Les fichiers {file1} et {file2} sont différents')
+            return False
+    except FileNotFoundError as e:
+        logging.error(f'Erreur lors de la comparaison des fichiers: {e}')
         return False
 
-#L'URL du fichier .zip à récupérer est toujours la même.
+# Fonction pour créer une archive
+def create_archive(source_dir, output_filename):
+    if not os.path.exists(source_dir):
+        logging.info(f'Le répertoire source {source_dir} n\'existe pas')
+    try:
+        shutil.make_archive(output_filename, 'gztar', source_dir)
+        logging.info(f'Archive {output_filename}.tar.gz créée avec succès')
+    except Exception as e:
+        logging.error(f'Erreur lors de la création de l\'archive {output_filename}: {e}')
 
-#Ce fichier .zip contient un dump SQL (le fichier a toujours le même nom dans le zip).
+# Fonction pour supprimer les anciens fichiers
+def delete_old_files(directory, retention_days):
+    now = time.time()
+    for filename in os.listdir(directory):
+        file_path = os.path.join(directory, filename)
+        if os.path.isfile(file_path):
+            file_time = os.path.getmtime(file_path)
+            if (now - file_time) > retention_days * 86400:
+                os.remove(file_path)
+                logging.info(f'Fichier {filename} supprimé pour cause de dépassement de la durée de conservation')
 
-#Une fois le fichier dézippé, il faut le contrôler (que ce ne soit pas le même que la veille) et créer une nouvelle archive au format AAAADDMM.tgz que l'on va aller poser sur un serveur distant pour archivage.
+# Fonction pour uploader un fichier via SFTP
+def upload_file_sftp(local_file, remote_path, host, port, username, password):
+    try:
+        transport = paramiko.Transport((host, port))
+        transport.connect(username=username, password=password)
+        sftp = paramiko.SFTPClient.from_transport(transport)
+        sftp.put(local_file, remote_path)
+        sftp.close()
+        transport.close()
+        logging.info(f'Fichier {local_file} uploadé avec succès vers {remote_path}')
+    except (paramiko.SSHException, socket.gaierror) as e:
+        logging.error(f'Erreur lors de l\'upload du fichier {local_file} via SFTP: {e}')
 
-#Le serveur de destination pouvant être un serveur SMB/CIFS (Windows), NFS (Linux),  WEBDAV (cloud), serveur FTPS ou SFTP à votre convenance.
+# Configuration
+url = 'http://localhost/archive.zip'
+zip_filename = 'archive.zip'
+extracted_folder = 'extracted_files'
+sql_filename = 'sample-mpg-file.mpg'  # Fichier à comparer
+retention_days = 30  # Durée de conservation des fichiers en jours
+sftp_host = 'localhost'
+sftp_port = 22
+sftp_username = 'antho'
+sftp_password = 'sylvie-alexis'
+remote_directory = 'C:/Users/antho/Archivage'
 
-#La durée de conservation des archives sur le serveur de destination sera paramètrable et vous devrez gérer la suppression des versions dépassant la durée de conservation.
+# Processus principal
+download_file(url, zip_filename)
+unzip_file(zip_filename, extracted_folder)
 
-
-# URL of the zip file to download
-
-url = 'https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-large-zip-file.zip'
-
-# Step 1: Download the file
-
-download_file(url,'archive.zip')
-
-# Step 2: Unzip the file
-
-unzip_file('archive.zip','extracted_files')
-
-# Step 3: Compare the SQL dump with the file from the previous day
-
-if (compare_files('extracted_files/sample-mpg-file.mpg','sample-mpg-file.mpg') == False):
-    # Step 4: Create a new archive with the current date
-
+if not compare_files(os.path.join(extracted_folder, sql_filename), sql_filename):
     current_date = datetime.datetime.now().strftime('%Y%d%m')
-    shutil.make_archive(current_date, 'gztar', 'extracted_files')
+    create_archive(extracted_folder, current_date)
 
-    # Step 5: Copy the archive to the destination server
+    remote_path = f'{remote_directory}/{current_date}.tar.gz'
+    upload_file_sftp(f'{current_date}.tar.gz', remote_path, sftp_host, sftp_port, sftp_username, sftp_password)
 
-    shutil.copy(f'{current_date}.tar.gz', 'destination_server')
+delete_old_files(remote_directory, retention_days)
 
