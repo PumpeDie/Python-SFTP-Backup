@@ -2,6 +2,8 @@
 # et de l'archiver sur un serveur distant avec une durée de conservation paramètrable. 
 # L'URL du fichier .zip à récupérer est toujours la même.
 
+# v1.0
+
 
 import requests;
 import zipfile;
