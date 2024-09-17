@@ -11,7 +11,7 @@ import configparser
 
 # Lecture du fichier config.ini
 config = configparser.ConfigParser()
-config.read('config.ini')
+config.read('config/config.ini')
 
 # Configuration des logs
 log_file = config['LOGGING']['log_file']
