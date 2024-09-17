@@ -7,9 +7,15 @@ import shutil
 import paramiko
 import logging
 import socket
+import configparser
+
+# Lecture du fichier config.ini
+config = configparser.ConfigParser()
+config.read('config.ini')
 
 # Configuration des logs
-logging.basicConfig(filename='archivage.log', level=logging.INFO)
+log_file = config['LOGGING']['log_file']
+logging.basicConfig(filename=log_file, level=logging.INFO)
 
 # Fonction pour télécharger le fichier zip
 def download_file(url, filename):
@@ -54,7 +60,8 @@ def compare_files(file1, file2):
 # Fonction pour créer une archive
 def create_archive(source_dir, output_filename):
     if not os.path.exists(source_dir):
-        logging.info(f'Le répertoire source {source_dir} n\'existe pas')
+        logging.error(f'Le répertoire source {source_dir} n\'existe pas')
+        return
     try:
         shutil.make_archive(output_filename, 'gztar', source_dir)
         logging.info(f'Archive {output_filename}.tar.gz créée avec succès')
@@ -78,6 +85,14 @@ def upload_file_sftp(local_file, remote_path, host, port, username, password):
         transport = paramiko.Transport((host, port))
         transport.connect(username=username, password=password)
         sftp = paramiko.SFTPClient.from_transport(transport)
+        
+        # Vérifier si le répertoire distant existe, sinon le créer
+        try:
+            sftp.stat(os.path.dirname(remote_path))
+        except FileNotFoundError:
+            sftp.mkdir(os.path.dirname(remote_path))
+            logging.info(f'Dossier distant {os.path.dirname(remote_path)} créé')
+
         sftp.put(local_file, remote_path)
         sftp.close()
         transport.close()
@@ -85,28 +100,28 @@ def upload_file_sftp(local_file, remote_path, host, port, username, password):
     except (paramiko.SSHException, socket.gaierror) as e:
         logging.error(f'Erreur lors de l\'upload du fichier {local_file} via SFTP: {e}')
 
-# Configuration
-url = 'http://localhost/archive.zip'
+# Configuration depuis le fichier config.ini
+url = config['DEFAULT']['url']
 zip_filename = 'archive.zip'
 extracted_folder = 'extracted_files'
-sql_filename = 'sample-mpg-file.mpg'  # Fichier à comparer
-retention_days = 30  # Durée de conservation des fichiers en jours
-sftp_host = 'localhost'
-sftp_port = 22
-sftp_username = 'antho'
-sftp_password = 'sylvie-alexis'
-remote_directory = 'C:/Users/antho/Archivage'
+sql_filename = config['DEFAULT']['sql_filename']
+retention_days = int(config['DEFAULT']['retention_days'])
+
+sftp_host = config['SFTP']['host']
+sftp_port = int(config['SFTP']['port'])
+sftp_username = config['SFTP']['username']
+sftp_password = config['SFTP']['password']
+remote_directory = config['SFTP']['remote_directory']  # Choisir la ligne correcte selon l'OS
 
 # Processus principal
 download_file(url, zip_filename)
 unzip_file(zip_filename, extracted_folder)
 
 if not compare_files(os.path.join(extracted_folder, sql_filename), sql_filename):
-    current_date = datetime.datetime.now().strftime('%Y%d%m')
+    current_date = datetime.datetime.now().strftime('%Y%d%m')  # Format AAAADDMM
     create_archive(extracted_folder, current_date)
 
-    remote_path = f'{remote_directory}/{current_date}.tar.gz'
+    remote_path = os.path.join(remote_directory, f'{current_date}.tar.gz')
     upload_file_sftp(f'{current_date}.tar.gz', remote_path, sftp_host, sftp_port, sftp_username, sftp_password)
 
 delete_old_files(remote_directory, retention_days)
-
