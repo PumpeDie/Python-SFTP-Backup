@@ -125,7 +125,6 @@ def send_email(subject, body, to_emails, from_email, log_file=None):
             )
             msg.attach(part)
 
-    try:
         # Gmail requires a secure SSL connection
         context = ssl.create_default_context()
 
@@ -135,10 +134,7 @@ def send_email(subject, body, to_emails, from_email, log_file=None):
             # Send the email
             server.sendmail(from_email, to_emails, msg.as_string())
 
-        print(f"Email successfully sent to {', '.join(to_emails)}")
-
-    except Exception as e:
-        print(f"Error sending email: {e}")
+        logging.info(f'Email envoyé avec succès à {to_emails}')
 
 # Configuration
 url = 'http://localhost/archive.zip'
