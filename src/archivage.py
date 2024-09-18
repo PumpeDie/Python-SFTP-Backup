@@ -21,9 +21,6 @@ config.read('config/config.ini')
 
 # Configuration des logs
 log_file = config['LOGGING']['log_file']
-with open(log_file, 'w'):
-    pass
-
 logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Fonction pour télécharger le fichier zip
@@ -69,7 +66,7 @@ def compare_files(file1, file2):
 # Fonction pour créer une archive
 def create_archive(source_dir, output_filename):
     if not os.path.exists(source_dir):
-        logging.error(f'Le répertoire source {source_dir} n\'existe pas')
+        logging.info(f'Le répertoire source {source_dir} n\'existe pas')
         return
     try:
         shutil.make_archive(output_filename, 'gztar', source_dir)
@@ -111,13 +108,11 @@ def upload_file_sftp(local_file, remote_path, host, port, username, password):
 
 # Fonction pour envoyer un email
 def send_email(subject, body, to_emails, from_email, log_file=None):
-    # Lire les informations de connexion depuis config.ini
-    smtp_username = config['EMAIL']['username']
-    smtp_password = config['EMAIL']['password']
+    username = config['EMAIL']['smtp_username']
+    password = config['EMAIL']['smtp_password']
 
-    # Assurer que to_emails est une liste, même si c'est une seule adresse email
     if isinstance(to_emails, str):
-        to_emails = [to_emails]  # Convertir en liste si c'est une chaîne
+        to_emails = [to_emails]  # Convertir en liste si c'est une seule adresse email
 
     # Créer le message email
     msg = MIMEMultipart()
@@ -128,7 +123,7 @@ def send_email(subject, body, to_emails, from_email, log_file=None):
     # Ajouter le corps de l'email
     msg.attach(MIMEText(body, 'plain'))
 
-    # Attacher le fichier log si fourni
+    # Joindre le fichier log si fourni
     if log_file and os.path.exists(log_file):
         with open(log_file, 'rb') as attachment:
             part = MIMEBase('application', 'octet-stream')
@@ -136,18 +131,17 @@ def send_email(subject, body, to_emails, from_email, log_file=None):
             encoders.encode_base64(part)
             part.add_header(
                 'Content-Disposition',
-                f'attachment; filename= {os.path.basename(log_file)}'
+                f'attachment; filename={os.path.basename(log_file)}'
             )
             msg.attach(part)
 
     try:
-        # Gmail nécessite une connexion SSL sécurisée
+        # Gmail requiert une connexion SSL sécurisée
         context = ssl.create_default_context()
 
-        # Se connecter au serveur SMTP de Gmail avec SSL sur le port 465
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-            server.login(smtp_username, smtp_password)
-            # Envoyer l'email
+        # Connexion au serveur SMTP de Gmail avec SSL sur le port 465
+        with smtplib.SMTP_SSL(config['EMAIL']['smtp_host'], config['EMAIL']['smtp_port'], context=context) as server:
+            server.login(username, password)
             server.sendmail(from_email, to_emails, msg.as_string())
 
         logging.info(f"Email envoyé avec succès à {', '.join(to_emails)}")
@@ -168,11 +162,22 @@ sftp_username = config['SFTP']['username']
 sftp_password = config['SFTP']['password']
 remote_directory = config['SFTP']['remote_directory']
 
-# Processus principal
-download_file(url, zip_filename)
-unzip_file(zip_filename, extracted_folder)
+email_enabled = config.getboolean('EMAIL', 'enable_email')
+smtp_host = config['EMAIL']['smtp_host']
+smtp_port = int(config['EMAIL']['smtp_port'])
+smtp_username = config['EMAIL']['smtp_username']
+smtp_password = config['EMAIL']['smtp_password']
+sender_email = config['EMAIL']['sender_email']
+recipient_email = config['EMAIL']['recipient_email']
+subject_success = config['EMAIL']['subject_success']
+subject_failure = config['EMAIL']['subject_failure']
+attach_log = config.getboolean('EMAIL', 'attach_log')
 
+# Processus principal
 try:
+    download_file(url, zip_filename)
+    unzip_file(zip_filename, extracted_folder)
+
     if not compare_files(os.path.join(extracted_folder, sql_filename), sql_filename):
         current_date = datetime.datetime.now().strftime('%Y%d%m')
         
@@ -182,7 +187,7 @@ try:
             logging.error(f'Erreur lors de la création de l\'archive: {e}')
             raise
         
-        remote_path = f'{remote_directory}/{current_date}.tar.gz'
+        remote_path = os.path.join(remote_directory, f'{current_date}.tar.gz')
         
         try:
             upload_file_sftp(f'{current_date}.tar.gz', remote_path, sftp_host, sftp_port, sftp_username, sftp_password)
@@ -190,35 +195,37 @@ try:
             logging.error(f'Erreur lors de l\'upload du fichier via SFTP: {e}')
             raise
         
-        try:
+        if email_enabled:
+            try:
+                send_email(
+                    subject=subject_success,
+                    body="Modification des fichiers du serveur Web détectée. Nouvelle archive a été créée sur le serveur distant.",
+                    to_emails=recipient_email,
+                    from_email=sender_email,
+                    log_file=log_file if attach_log else None
+                )
+            except Exception as e:
+                logging.error(f'Erreur lors de l\'envoi de l\'email: {e}')
+                raise
+    else:
+        if email_enabled:
+            logging.info("Aucune modification détectée, aucune nouvelle archive créée.")
             send_email(
-                subject="Archivage : Nouvelle archive créée",
-                body="Modification des fichiers du serveur Web détectée. Nouvelle archive a été créée sur le serveur distant.",
-                to_emails="silvaraynal@gmail.com",
-                from_email="silvaraynal@gmail.com",
-                log_file="archivage.log"
+                subject=subject_failure,
+                body="Aucune modification détectée dans les fichiers du serveur Web. Pas de nouvelle archive créée.",
+                to_emails=recipient_email,
+                from_email=sender_email,
+                log_file=log_file if attach_log else None
             )
-        except Exception as e:
-            logging.error(f'Erreur lors de l\'envoi de l\'email: {e}')
-            raise
 except Exception as e:
     logging.error(f'Erreur dans le processus d\'archivage: {e}')
-    send_email(
-                subject="Archivage : Erreur d'archivage",
-                body="Erreur détectée lors du processus d'archivage. Veuillez consulter les logs pour plus d'informations.",
-                to_emails="silvaraynal@gmail.com",
-                from_email="silvaraynal@gmail.com",
-                log_file="archivage.log"
-            )
-
-else:
-    logging.info("Fin de la procédure d'archivage")
-    send_email(
-    subject="Archivage : Aucune modification des fichiers",
-    body="Aucune modification détectée dans les fichiers du serveur Web. Pas de nouvelle archive créée.",
-    to_emails="silvaraynal@gmail.com",
-    from_email="silvaraynal@gmail.com",
-    log_file="archivage.log"
-    )
+    if email_enabled:
+        send_email(
+            subject="Archivage : Erreur d'archivage",
+            body="Erreur détectée lors du processus d'archivage. Veuillez consulter les logs pour plus d'informations.",
+            to_emails=recipient_email,
+            from_email=sender_email,
+            log_file=log_file if attach_log else None
+        )
 
 delete_old_files(remote_directory, retention_days)
