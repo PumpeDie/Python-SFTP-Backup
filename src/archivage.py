@@ -21,7 +21,7 @@ config.read('config/config.ini')
 
 # Configuration des logs
 log_file = config['LOGGING']['log_file']
-logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', filemode='w')
 
 # Fonction pour télécharger le fichier zip
 def download_file(url, filename):
@@ -187,7 +187,7 @@ try:
             logging.error(f'Erreur lors de la création de l\'archive: {e}')
             raise
         
-        remote_path = os.path.join(remote_directory, f'{current_date}.tar.gz')
+        remote_path = os.path.join(remote_directory)
         
         try:
             upload_file_sftp(f'{current_date}.tar.gz', remote_path, sftp_host, sftp_port, sftp_username, sftp_password)
