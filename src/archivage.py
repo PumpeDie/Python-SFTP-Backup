@@ -74,24 +74,21 @@ def create_archive(source_dir, output_filename):
     except Exception as e:
         logging.error(f'Erreur lors de la création de l\'archive {output_filename}: {e}')
 
-# Fonction pour supprimer les anciens fichiers
-def delete_old_files(directory, retention_days):
-    now = time.time()
-    for filename in os.listdir(directory):
-        file_path = os.path.join(directory, filename)
-        if os.path.isfile(file_path):
-            file_time = os.path.getmtime(file_path)
-            if (now - file_time) > retention_days * 86400:
-                os.remove(file_path)
-                logging.info(f'Fichier {filename} supprimé pour cause de dépassement de la durée de conservation')
-
-# Fonction pour uploader un fichier via SFTP
-def upload_file_sftp(local_file, remote_path, host, port, username, password):
+# Fonction pour établir une connexion SFTP
+def create_sftp_connection(host, port, username, password):
     try:
         transport = paramiko.Transport((host, port))
         transport.connect(username=username, password=password)
         sftp = paramiko.SFTPClient.from_transport(transport)
-        
+        logging.info("Connexion SFTP établie avec succès")
+        return sftp, transport
+    except (paramiko.SSHException, socket.gaierror) as e:
+        logging.error(f'Erreur lors de la connexion SFTP: {e}')
+        return None, None
+
+# Fonction pour uploader un fichier via SFTP
+def upload_file_sftp(sftp, local_file, remote_path):
+    try:
         # Vérifier si le répertoire distant existe, sinon le créer
         try:
             sftp.stat(os.path.dirname(remote_path))
@@ -100,11 +97,27 @@ def upload_file_sftp(local_file, remote_path, host, port, username, password):
             logging.info(f'Dossier distant {os.path.dirname(remote_path)} créé')
 
         sftp.put(local_file, remote_path)
-        sftp.close()
-        transport.close()
         logging.info(f'Fichier {local_file} uploadé avec succès vers {remote_path}')
-    except (paramiko.SSHException, socket.gaierror) as e:
+    except Exception as e:
         logging.error(f'Erreur lors de l\'upload du fichier {local_file} via SFTP: {e}')
+
+# Fonction pour supprimer les anciens fichiers via SFTP
+def delete_old_files_sftp(sftp, directory, retention_days):
+    now = time.time()
+    try:
+        # Lister les fichiers dans le répertoire distant
+        for filename in sftp.listdir(directory):
+            file_path = os.path.join(directory, filename)
+            # Obtenir les informations sur le fichier
+            file_info = sftp.stat(file_path)
+            file_time = file_info.st_mtime  # Temps de dernière modification
+
+            # Vérifier si le fichier doit être supprimé
+            if (now - file_time) > retention_days * 86400:
+                sftp.remove(file_path)
+                logging.info(f'Fichier {filename} supprimé pour cause de dépassement de la durée de conservation')
+    except Exception as e:
+        logging.error(f'Erreur lors de la suppression des anciens fichiers: {e}')
 
 # Fonction pour envoyer un email
 def send_email(subject, body, to_emails, from_email, log_file=None):
@@ -181,21 +194,32 @@ try:
 
     if not compare_files(os.path.join(extracted_folder, sql_filename), sql_filename_remote):
         current_date = datetime.datetime.now().strftime('%Y%d%m')
-        
+
         try:
             create_archive(extracted_folder, current_date)
         except Exception as e:
             logging.error(f'Erreur lors de la création de l\'archive: {e}')
             raise
-        
+
         remote_path = os.path.join(remote_directory, f'{current_date}.tar.gz')
+
+        # Établir la connexion SFTP
+        sftp, transport = create_sftp_connection(sftp_host, sftp_port, sftp_username, sftp_password)
         
-        try:
-            upload_file_sftp(f'{current_date}.tar.gz', remote_path, sftp_host, sftp_port, sftp_username, sftp_password)
-        except Exception as e:
-            logging.error(f'Erreur lors de l\'upload du fichier via SFTP: {e}')
-            raise
-        
+        if sftp:
+            try:
+                upload_file_sftp(sftp, f'{current_date}.tar.gz', remote_path)
+            except Exception as e:
+                logging.error(f'Erreur lors de l\'upload du fichier via SFTP: {e}')
+                raise
+            
+            # Suppression des anciens fichiers
+            delete_old_files_sftp(sftp, remote_directory, retention_days)
+
+            # Fermer la connexion SFTP
+            sftp.close()
+            transport.close()
+
         if email_enabled:
             try:
                 send_email(
@@ -228,5 +252,3 @@ except Exception as e:
             from_email=sender_email,
             log_file=log_file if attach_log else None
         )
-
-delete_old_files(remote_directory, retention_days)
