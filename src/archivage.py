@@ -73,7 +73,7 @@ def create_archive(source_dir, output_filename):
         logging.info(f'Archive {output_filename}.tar.gz créée avec succès')
     except Exception as e:
         logging.error(f'Erreur lors de la création de l\'archive {output_filename}: {e}')
-
+        
 # Fonction pour établir une connexion SFTP
 def create_sftp_connection(host, port, username, password):
     try:
@@ -168,6 +168,7 @@ zip_filename = 'archive.zip'
 extracted_folder = 'extracted_files'
 sql_filename = config['DEFAULT']['sql_filename']
 retention_days = int(config['DEFAULT']['retention_days'])
+enable_retention = config.getboolean('DEFAULT', 'enable_retention')
 
 sftp_host = config['SFTP']['host']
 sftp_port = int(config['SFTP']['port'])
@@ -186,21 +187,28 @@ recipient_email = config['EMAIL']['recipient_email']
 subject_success = config['EMAIL']['subject_success']
 subject_failure = config['EMAIL']['subject_failure']
 attach_log = config.getboolean('EMAIL', 'attach_log')
+use_ssl = config.getboolean('EMAIL', 'use_ssl')
 
-# Processus principal
+# Processus principal d'archivage
 try:
+    # Téléchargement du fichier zip depuis l'URL configurée
     download_file(url, zip_filename)
+    
+    # Décompression du fichier zip téléchargé
     unzip_file(zip_filename, extracted_folder)
 
+    # Comparaison du fichier SQL extrait avec celui du serveur distant
     if not compare_files(os.path.join(extracted_folder, sql_filename), sql_filename_remote):
-        current_date = datetime.datetime.now().strftime('%Y%d%m')
+        current_date = datetime.datetime.now().strftime('%Y%d%m')  # Format de la date pour nommer l'archive
 
         try:
+            # Création de l'archive avec la date du jour
             create_archive(extracted_folder, current_date)
         except Exception as e:
             logging.error(f'Erreur lors de la création de l\'archive: {e}')
             raise
 
+        # Chemin de l'archive à uploader sur le serveur distant
         remote_path = os.path.join(remote_directory, f'{current_date}.tar.gz')
 
         # Établir la connexion SFTP
@@ -208,31 +216,34 @@ try:
         
         if sftp:
             try:
+                # Upload de l'archive via SFTP
                 upload_file_sftp(sftp, f'{current_date}.tar.gz', remote_path)
             except Exception as e:
                 logging.error(f'Erreur lors de l\'upload du fichier via SFTP: {e}')
                 raise
             
-            # Suppression des anciens fichiers
+            # Suppression des anciens fichiers sur le serveur distant si nécessaire
             delete_old_files_sftp(sftp, remote_directory, retention_days)
 
-            # Fermer la connexion SFTP
+            # Fermeture de la connexion SFTP
             sftp.close()
             transport.close()
 
+        # Envoi d'un email en cas de succès avec option d'attacher le fichier de log
         if email_enabled:
             try:
                 send_email(
                     subject=subject_success,
-                    body="Modification des fichiers du serveur Web détectée. Nouvelle archive a été créée sur le serveur distant.",
+                    body="Modification des fichiers du serveur Web détectée. Nouvelle archive créée sur le serveur distant.",
                     to_emails=recipient_email,
                     from_email=sender_email,
-                    log_file=log_file if attach_log else None
+                    log_file=log_file if attach_log else None  # Attacher le fichier de log si activé
                 )
             except Exception as e:
                 logging.error(f'Erreur lors de l\'envoi de l\'email: {e}')
                 raise
     else:
+        # Si aucune modification n'est détectée, envoi d'un email d'absence de nouvelle archive
         if email_enabled:
             logging.info("Aucune modification détectée, aucune nouvelle archive créée.")
             send_email(
@@ -240,15 +251,16 @@ try:
                 body="Aucune modification détectée dans les fichiers du serveur Web. Pas de nouvelle archive créée.",
                 to_emails=recipient_email,
                 from_email=sender_email,
-                log_file=log_file if attach_log else None
+                log_file=log_file if attach_log else None  # Attacher le fichier de log si activé
             )
 except Exception as e:
+    # En cas d'erreur dans le processus, envoi d'un email d'alerte
     logging.error(f'Erreur dans le processus d\'archivage: {e}')
     if email_enabled:
         send_email(
             subject="Archivage : Erreur d'archivage",
-            body="Erreur détectée lors du processus d'archivage. Veuillez consulter les logs pour plus d'informations.",
+            body=f"Erreur détectée lors du processus d'archivage : {e}. Veuillez consulter les logs pour plus d'informations.",
             to_emails=recipient_email,
             from_email=sender_email,
-            log_file=log_file if attach_log else None
+            log_file=log_file if attach_log else None  # Attacher le fichier de log si activé
         )
