@@ -196,9 +196,18 @@ try:
     
     # Décompression du fichier zip téléchargé
     unzip_file(zip_filename, extracted_folder)
+    
+    # Établir la connexion SFTP
+    sftp, transport = create_sftp_connection(sftp_host, sftp_port, sftp_username, sftp_password)
+    
+    # Chemin local pour stocker le fichier distant
+    local_sql_filename_remote = os.path.join(extracted_folder, 'remote_sql_file.sql')
 
+    # Télécharger le fichier SQL distant
+    sftp.get(os.path.join(remote_directory, sql_filename_remote), local_sql_filename_remote)
+        
     # Comparaison du fichier SQL extrait avec celui du serveur distant
-    if not compare_files(os.path.join(extracted_folder, sql_filename), sql_filename_remote):
+    if not compare_files(os.path.join(extracted_folder, sql_filename), local_sql_filename_remote):
         current_date = datetime.datetime.now().strftime('%Y%d%m')  # Format de la date pour nommer l'archive
 
         try:
@@ -211,9 +220,6 @@ try:
         # Chemin de l'archive à uploader sur le serveur distant
         remote_path = os.path.join(remote_directory, f'{current_date}.tar.gz')
 
-        # Établir la connexion SFTP
-        sftp, transport = create_sftp_connection(sftp_host, sftp_port, sftp_username, sftp_password)
-        
         if sftp:
             try:
                 # Upload de l'archive via SFTP
@@ -242,6 +248,7 @@ try:
             except Exception as e:
                 logging.error(f'Erreur lors de l\'envoi de l\'email: {e}')
                 raise
+        
     else:
         # Si aucune modification n'est détectée, envoi d'un email d'absence de nouvelle archive
         if email_enabled:
@@ -264,3 +271,13 @@ except Exception as e:
             from_email=sender_email,
             log_file=log_file if attach_log else None  # Attacher le fichier de log si activé
         )
+        
+finally:
+    # Suppression des fichiers temporaires
+    for file in [zip_filename, local_sql_filename_remote]:
+        if os.path.exists(file):
+            os.remove(file)
+            logging.info(f'Fichier {file} supprimé avec succès')
+    if os.path.exists(extracted_folder):
+        shutil.rmtree(extracted_folder)
+        logging.info(f'Répertoire {extracted_folder} supprimé avec succès')
