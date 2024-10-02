@@ -161,6 +161,7 @@ sftp_port = int(config['SFTP']['port'])
 sftp_username = config['SFTP']['username']
 sftp_password = config['SFTP']['password']
 remote_directory = config['SFTP']['remote_directory']
+sql_filename_remote = config['SFTP']['sql_filename_remote']
 
 email_enabled = config.getboolean('EMAIL', 'enable_email')
 smtp_host = config['EMAIL']['smtp_host']
@@ -178,7 +179,7 @@ try:
     download_file(url, zip_filename)
     unzip_file(zip_filename, extracted_folder)
 
-    if not compare_files(os.path.join(extracted_folder, sql_filename), sql_filename):
+    if not compare_files(os.path.join(extracted_folder, sql_filename), sql_filename_remote):
         current_date = datetime.datetime.now().strftime('%Y%d%m')
         
         try:
@@ -187,7 +188,7 @@ try:
             logging.error(f'Erreur lors de la création de l\'archive: {e}')
             raise
         
-        remote_path = os.path.join(remote_directory)
+        remote_path = os.path.join(remote_directory, f'{current_date}.tar.gz')
         
         try:
             upload_file_sftp(f'{current_date}.tar.gz', remote_path, sftp_host, sftp_port, sftp_username, sftp_password)
