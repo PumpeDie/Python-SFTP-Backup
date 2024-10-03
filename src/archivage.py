@@ -1,6 +1,5 @@
 import time
 import requests
-import zipfile
 import os
 import datetime
 import shutil
@@ -19,14 +18,45 @@ import configparser
 config = configparser.ConfigParser()
 config.read('config/config.ini')
 
-# Configuration des logs
+# Configuration depuis le fichier config.ini
+url = config['DEFAULT']['url']
+zip_filename = 'archive.zip'
+extracted_folder = 'extracted_files'
+sql_filename = config['DEFAULT']['sql_filename']
+retention_days = int(config['DEFAULT']['retention_days'])
+enable_retention = config.getboolean('DEFAULT', 'enable_retention')
+
+sftp_host = config['SFTP']['host']
+sftp_port = int(config['SFTP']['port'])
+sftp_username = config['SFTP']['username']
+sftp_password = config['SFTP']['password']
+remote_directory = config['SFTP']['remote_directory']
+
+email_enabled = config.getboolean('EMAIL', 'enable_email')
+smtp_host = config['EMAIL']['smtp_host']
+smtp_port = int(config['EMAIL']['smtp_port'])
+smtp_username = config['EMAIL']['smtp_username']
+smtp_password = config['EMAIL']['smtp_password']
+sender_email = config['EMAIL']['sender_email']
+recipient_email = config['EMAIL']['recipient_email'].split(',')
+recipient_email = [email.strip() for email in recipient_email]  # Nettoyer les espaces
+subject_success = config['EMAIL']['subject_success']
+subject_failure = config['EMAIL']['subject_failure']
+attach_log = config.getboolean('EMAIL', 'attach_log')
+
 log_file = config['LOGGING']['log_file']
+
+# Configuration des logs
+# Creer un fichier archive.log dans le dossier logs si il n'existe pas
+# Vérifier si le dossier logs existe, sinon le créer
+if not os.path.exists('logs'):
+    os.makedirs('logs')
 logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', filemode='w')
 
 # Fonction pour télécharger le fichier zip
 def download_file(url, filename):
     try:
-        response = requests.get(url, allow_redirects=True, stream=True)
+        response = requests.get(url, allow_redirects=True, stream=True, verify=False)
         response.raise_for_status()  # Vérifie les erreurs HTTP
 
         with open(filename, 'wb') as f:
@@ -36,15 +66,6 @@ def download_file(url, filename):
         logging.info(f'Fichier {filename} téléchargé avec succès')
     except requests.RequestException as e:
         logging.error(f'Erreur lors du téléchargement du fichier {filename}: {e}')
-
-# Fonction pour dézipper l'archive zip
-def unzip_file(filename, extract_to):
-    try:
-        with zipfile.ZipFile(filename, 'r') as zip_ref:
-            zip_ref.extractall(extract_to)
-        logging.info(f'Contenu de l\'archive {filename} extrait avec succès')
-    except (zipfile.BadZipFile, FileNotFoundError) as e:
-        logging.error(f'Erreur lors de l\'extraction du fichier {filename}: {e}')
 
 # Fonction pour comparer deux fichiers
 def compare_files(file1, file2):
@@ -162,55 +183,61 @@ def send_email(subject, body, to_emails, from_email, log_file=None):
     except Exception as e:
         logging.error(f"Erreur lors de l'envoi de l'email: {e}")
 
-# Configuration depuis le fichier config.ini
-url = config['DEFAULT']['url']
-zip_filename = 'archive.zip'
-extracted_folder = 'extracted_files'
-sql_filename = config['DEFAULT']['sql_filename']
-retention_days = int(config['DEFAULT']['retention_days'])
-enable_retention = config.getboolean('DEFAULT', 'enable_retention')
-
-sftp_host = config['SFTP']['host']
-sftp_port = int(config['SFTP']['port'])
-sftp_username = config['SFTP']['username']
-sftp_password = config['SFTP']['password']
-remote_directory = config['SFTP']['remote_directory']
-sql_filename_remote = config['SFTP']['sql_filename_remote']
-
-email_enabled = config.getboolean('EMAIL', 'enable_email')
-smtp_host = config['EMAIL']['smtp_host']
-smtp_port = int(config['EMAIL']['smtp_port'])
-smtp_username = config['EMAIL']['smtp_username']
-smtp_password = config['EMAIL']['smtp_password']
-sender_email = config['EMAIL']['sender_email']
-recipient_email = config['EMAIL']['recipient_email']
-subject_success = config['EMAIL']['subject_success']
-subject_failure = config['EMAIL']['subject_failure']
-attach_log = config.getboolean('EMAIL', 'attach_log')
-use_ssl = config.getboolean('EMAIL', 'use_ssl')
-
 # Processus principal d'archivage
 try:
     # Téléchargement du fichier zip depuis l'URL configurée
     download_file(url, zip_filename)
     
     # Décompression du fichier zip téléchargé
-    unzip_file(zip_filename, extracted_folder)
+    shutil.unpack_archive(zip_filename, extracted_folder)
+    
+    # Chemin du fichier SQL provenant du serveur Web
+    try: 
+        local_sql_file = os.path.join(extracted_folder, sql_filename)
+        logging.info(f'Fichier SQL local extrait: {local_sql_file}')
+    except FileNotFoundError as e:
+        logging.error(f'Erreur lors de la récupération du fichier SQL local: {e}')
+        raise FileNotFoundError('Fichier SQL local non trouvé')
     
     # Établir la connexion SFTP
     sftp, transport = create_sftp_connection(sftp_host, sftp_port, sftp_username, sftp_password)
     
-    # Chemin local pour stocker le fichier distant
-    local_sql_filename_remote = os.path.join(extracted_folder, 'remote_sql_file.sql')
-
-    # Télécharger le fichier SQL distant
-    sftp.get(os.path.join(remote_directory, sql_filename_remote), local_sql_filename_remote)
+    # Récupérer la liste des fichiers dans le répertoire distant
+    remote_files = sftp.listdir(remote_directory)
+    
+    # Filtrer les fichiers .tar.gz et trier par date de modification
+    tar_files = [f for f in remote_files if f.endswith('.tar.gz')]
+    tar_files.sort(key=lambda x: sftp.stat(os.path.join(remote_directory, x)).st_mtime, reverse=True)
+    
+    if tar_files:
+        # Récupérer le dernier fichier .tar.gz
+        latest_tar_file = tar_files[0]
+        remote_tar_file = os.path.join(extracted_folder, latest_tar_file)
+        
+        # Télécharger le dernier fichier .tar.gz
+        sftp.get(os.path.join(remote_directory, latest_tar_file), remote_tar_file)
+    else:
+        logging.error('Aucune archive .tar.gz trouvée sur le serveur distant')
+        raise FileNotFoundError('Aucune archive .tar.gz trouvée sur le serveur distant')
+    
+    # Decompresser le fichier .tar.gz
+    shutil.unpack_archive(remote_tar_file, extracted_folder)
+    
+    # Chemin des fichiers SQL locaux et distants
+    remote_sql_file = os.path.join(extracted_folder, 'remote_dumpfile.sql')
+    
+    # Date actuelle pour nommer l'archive
+    current_date = datetime.datetime.now().strftime('%Y%d%m')  # Format de la date pour nommer l'archive
         
     # Comparaison du fichier SQL extrait avec celui du serveur distant
-    if not compare_files(os.path.join(extracted_folder, sql_filename), local_sql_filename_remote):
-        current_date = datetime.datetime.now().strftime('%Y%d%m')  # Format de la date pour nommer l'archive
+    if not compare_files(local_sql_file, remote_sql_file):
 
         try:
+            # Suppression de l'archive locale si elle existe
+            os.remove(remote_sql_file)
+            os.remove(remote_tar_file)
+            # Renommage fichier SQL extrait
+            os.rename(os.path.join(extracted_folder, sql_filename), os.path.join(extracted_folder,'remote_dumpfile.sql'))
             # Création de l'archive avec la date du jour
             create_archive(extracted_folder, current_date)
         except Exception as e:
@@ -229,7 +256,8 @@ try:
                 raise
             
             # Suppression des anciens fichiers sur le serveur distant si nécessaire
-            delete_old_files_sftp(sftp, remote_directory, retention_days)
+            if enable_retention:
+                delete_old_files_sftp(sftp, remote_directory, retention_days)
 
             # Fermeture de la connexion SFTP
             sftp.close()
@@ -254,7 +282,7 @@ try:
         if email_enabled:
             logging.info("Aucune modification détectée, aucune nouvelle archive créée.")
             send_email(
-                subject=subject_failure,
+                subject="Archivage : Aucune modification détectée",
                 body="Aucune modification détectée dans les fichiers du serveur Web. Pas de nouvelle archive créée.",
                 to_emails=recipient_email,
                 from_email=sender_email,
@@ -265,19 +293,19 @@ except Exception as e:
     logging.error(f'Erreur dans le processus d\'archivage: {e}')
     if email_enabled:
         send_email(
-            subject="Archivage : Erreur d'archivage",
+            subject=subject_failure,
             body=f"Erreur détectée lors du processus d'archivage : {e}. Veuillez consulter les logs pour plus d'informations.",
             to_emails=recipient_email,
             from_email=sender_email,
             log_file=log_file if attach_log else None  # Attacher le fichier de log si activé
         )
-        
+    
 finally:
     # Suppression des fichiers temporaires
-    for file in [zip_filename, local_sql_filename_remote]:
+    for file in [zip_filename, f'{current_date}.tar.gz']:
         if os.path.exists(file):
             os.remove(file)
-            logging.info(f'Fichier {file} supprimé avec succès')
+            logging.info(f'Fichier temporaire {file} supprimé avec succès')
     if os.path.exists(extracted_folder):
         shutil.rmtree(extracted_folder)
-        logging.info(f'Répertoire {extracted_folder} supprimé avec succès')
+        logging.info(f'Répertoire temporaire {extracted_folder} supprimé avec succès')
