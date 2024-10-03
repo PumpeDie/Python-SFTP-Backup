@@ -5,7 +5,7 @@ Il permet également la gestion de la rétention des fichiers et envoie des noti
 
 ## Fonctionnalités principales
 
-- [ ] Téléchargement d'un fichier ZIP depuis une URL
+- [ ] Téléchargement d'un fichier ZIP depuis une URL
 - [ ] Décompression et comparaison avec des fichiers distants
 - [ ] Création et envoi d'archives sur un serveur SFTP
 - [ ] Gestion de la rétention des fichiers
