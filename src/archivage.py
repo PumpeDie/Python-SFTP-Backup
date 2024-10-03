@@ -253,15 +253,15 @@ try:
                 upload_file_sftp(sftp, f'{current_date}.tar.gz', remote_path)
             except Exception as e:
                 logging.error(f'Erreur lors de l\'upload du fichier via SFTP: {e}')
-                raise
+
+            finally:
+                # Fermeture de la connexion SFTP
+                sftp.close()
+                transport.close()
             
             # Suppression des anciens fichiers sur le serveur distant si nécessaire
             if enable_retention:
                 delete_old_files_sftp(sftp, remote_directory, retention_days)
-
-            # Fermeture de la connexion SFTP
-            sftp.close()
-            transport.close()
 
         # Envoi d'un email en cas de succès avec option d'attacher le fichier de log
         if email_enabled:
