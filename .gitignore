@@ -1,0 +1,4 @@
+/venv/
+/logs/
+/extracted_files/
+*.tar.gz
