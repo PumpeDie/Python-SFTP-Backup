@@ -33,7 +33,8 @@ sftp_password = config['SFTP']['password']
 remote_directory = config['SFTP']['remote_directory']
 
 email_enabled = config.getboolean('EMAIL', 'enable_email')
-smtp_host = config['EMAIL']['smtp_host']
+use_tls = config.getboolean('EMAIL', 'use_tls')
+smtp_server = config['EMAIL']['smtp_server']
 smtp_port = int(config['EMAIL']['smtp_port'])
 smtp_username = config['EMAIL']['smtp_username']
 smtp_password = config['EMAIL']['smtp_password']
@@ -63,9 +64,9 @@ def download_file(url, filename):
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
 
-        logging.info(f'Fichier {filename} téléchargé avec succès')
+        logging.info(f'Fichier {filename} téléchargé avec succès depuis {url}')
     except requests.RequestException as e:
-        logging.error(f'Erreur lors du téléchargement du fichier {filename}: {e}')
+        logging.error(f'Erreur lors du téléchargement du fichier {filename} depuis {url}: {e}')
 
 # Fonction pour comparer deux fichiers
 def compare_files(file1, file2):
@@ -101,26 +102,29 @@ def create_sftp_connection(host, port, username, password):
         transport = paramiko.Transport((host, port))
         transport.connect(username=username, password=password)
         sftp = paramiko.SFTPClient.from_transport(transport)
-        logging.info("Connexion SFTP établie avec succès")
+        logging.info(f'Connexion SFTP établie avec succès à {host}:{port}')
         return sftp, transport
     except (paramiko.SSHException, socket.gaierror) as e:
-        logging.error(f'Erreur lors de la connexion SFTP: {e}')
+        logging.error(f'Erreur lors de la connexion SFTP à {host}:{port}: {e}')
         return None, None
 
 # Fonction pour uploader un fichier via SFTP
 def upload_file_sftp(sftp, local_file, remote_path):
     try:
-        # Vérifier si le répertoire distant existe, sinon le créer
         try:
+            # Vérifie si le répertoire distant existe
             sftp.stat(os.path.dirname(remote_path))
         except FileNotFoundError:
+            # Crée le répertoire distant s'il n'existe pas
             sftp.mkdir(os.path.dirname(remote_path))
             logging.info(f'Dossier distant {os.path.dirname(remote_path)} créé')
 
+        # Télécharge le fichier local vers le chemin distant
         sftp.put(local_file, remote_path)
         logging.info(f'Fichier {local_file} uploadé avec succès vers {remote_path}')
     except Exception as e:
-        logging.error(f'Erreur lors de l\'upload du fichier {local_file} via SFTP: {e}')
+        # Log l'erreur en cas d'échec de l'upload
+        logging.error(f'Erreur lors de l\'upload du fichier {local_file} vers {remote_path} via SFTP: {e}')
 
 # Fonction pour supprimer les anciens fichiers via SFTP
 def delete_old_files_sftp(sftp, directory, retention_days):
@@ -135,18 +139,18 @@ def delete_old_files_sftp(sftp, directory, retention_days):
 
             # Vérifier si le fichier doit être supprimé
             if (now - file_time) > retention_days * 86400:
+                # Supprime le fichier s'il dépasse la durée de conservation
                 sftp.remove(file_path)
                 logging.info(f'Fichier {filename} supprimé pour cause de dépassement de la durée de conservation')
     except Exception as e:
-        logging.error(f'Erreur lors de la suppression des anciens fichiers: {e}')
+        # Log l'erreur en cas d'échec de la suppression
+        logging.error(f'Erreur lors de la suppression des anciens fichiers dans {directory}: {e}')
 
 # Fonction pour envoyer un email
 def send_email(subject, body, to_emails, from_email, log_file=None):
-    username = config['EMAIL']['smtp_username']
-    password = config['EMAIL']['smtp_password']
-
+    # Vérifier si to_emails est une chaîne de caractères ou une liste
     if isinstance(to_emails, str):
-        to_emails = [to_emails]  # Convertir en liste si c'est une seule adresse email
+        to_emails = [to_emails] # Convertir en liste si c'est une chaîne de caractères
 
     # Créer le message email
     msg = MIMEMultipart()
@@ -170,18 +174,28 @@ def send_email(subject, body, to_emails, from_email, log_file=None):
             msg.attach(part)
 
     try:
-        # Gmail requiert une connexion SSL sécurisée
-        context = ssl.create_default_context()
+        # Connexion au serveur SMTP
+        if use_tls:
+            # Utiliser STARTTLS
+            server = smtplib.SMTP(smtp_server, smtp_port)
+            server.starttls(context=ssl.create_default_context())
+        else:
+            # Utiliser SSL
+            server = smtplib.SMTP_SSL(smtp_server, smtp_port, context=ssl.create_default_context())
 
-        # Connexion au serveur SMTP de Gmail avec SSL sur le port 465
-        with smtplib.SMTP_SSL(config['EMAIL']['smtp_host'], config['EMAIL']['smtp_port'], context=context) as server:
-            server.login(username, password)
-            server.sendmail(from_email, to_emails, msg.as_string())
+        # Authentification
+        server.login(smtp_username, smtp_password)
 
-        logging.info(f"Email envoyé avec succès à {', '.join(to_emails)}")
+        # Envoi de l'email
+        server.sendmail(from_email, to_emails, msg.as_string())
+        logging.info(f'Email envoyé avec succès à {", ".join(to_emails)}')
 
     except Exception as e:
-        logging.error(f"Erreur lors de l'envoi de l'email: {e}")
+        # Log l'erreur en cas d'échec de l'envoi
+        logging.error(f'Erreur lors de l\'envoi de l\'email: {e}')
+    finally:
+        # Fermer la connexion au serveur SMTP
+        server.quit()
 
 # Processus principal d'archivage
 try:

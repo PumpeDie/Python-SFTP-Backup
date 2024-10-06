@@ -14,5 +14,5 @@ Il permet également la gestion de la rétention des fichiers et envoie des noti
 
 ## Liens vers les documents
 
-- [Document Utilisateur](../docs/doc_utilisateur.md)
-- [Document Technique](../docs/doc_technique.md)
+- [Documentation Utilisateur](docs/doc_utilisateur.md)
+- [Documentation Technique](docs/doc_technique.md)
