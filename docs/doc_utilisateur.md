@@ -57,8 +57,10 @@ pip install paramiko requests
 
 ## Cron
 
-Les utilisateurs Linux ont la possibilité d'automatiser la procédure d'archivage à l'aide de **Cron**.
-Pour ce faire, ouvrez la configuration des tâches cron en utilisant la commande suivante :
+Les utilisateurs ont la possibilité d'automatiser la procédure d'archivage à l'aide de **Cron**.
+Pour les utilisateurs Linux, il est recommandé d'utiliser un environnement virtuelle Python pour éviter les conflits de dépendance.
+
+Pour activer l'automatisation, ouvrez la configuration des tâches cron en utilisant la commande suivante :
 
 ```bash
 crontab -e
@@ -67,7 +69,7 @@ crontab -e
 Ajoutez l'entrée suivante pour exécuter la procédure d'archivage tous les jours à 2h du matin :
 
 ```bash
-0 2 * * * /usr/bin/python3 /chemin/vers/ton/script/archivage.py >> /chemin/vers/ton/log/archivage.log 2>&1
+0 2 * * * /usr/bin/python3 /chemin/vers/script/archivage.py >> /chemin/vers/log/cron.log 2>&1
 ```
 
 Pour vérifier que la nouvelle tâche cron a bien été prise en compte, utilisez la commande suivante :
@@ -78,7 +80,7 @@ crontab -l
 
 ## Gestion des erreurs
 
-Si une erreur survient pendant l'exécution de l'utilitaire, les logs seront enregistrés dans le fichier spécifié dans la commande Cron et dans le fichier `archive.log`.
+Si une erreur survient pendant l'exécution de l'utilitaire, les logs seront enregistrés dans le fichier spécifié dans la commande Cron et dans le fichier `cron.log`.
 Les erreurs courantes incluent :
 
 - **Erreur d'authentification SFTP** : Vérifiez que vos identifiants sont corrects et que vous avez bien configuré le serveur.
