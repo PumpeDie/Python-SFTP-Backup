@@ -84,29 +84,84 @@ Cette fonction permet de gérer la rétention des fichiers en évitant l'encombr
 
 ### `send_email(subject, body, to_emails, from_email, log_file=None)`
 
-Envoie un email avec un sujet et un corps spécifiés, et optionnellement attache un fichier de log.
+Cette fonction est chargée d'envoyer des notifications par email, ce qui est essentiel pour informer les utilisateurs des résultats du processus d'archivage (succès, échec ou absence de modifications).
+Elle prend en charge l'envoi d'un email à un ou plusieurs destinataires et peut également inclure un fichier de log en pièce jointe, permettant aux administrateurs de vérifier les détails du processus.
 
-- **Paramètres:**
-  - `subject` (str): Sujet de l'email.
-  - `body` (str): Corps de l'email.
-  - `to_emails` (list): Liste des adresses email des destinataires.
-  - `from_email` (str): Adresse email de l'expéditeur.
-  - `log_file` (str, optionnel): Chemin du fichier de log à attacher.
+#### Détails de l'implémentation :
 
-L'envoi d'emails via SMTP permet de notifier l'utilisateur sur le succès ou l'échec de l'archivage.
+1. **Création du message :**
+
+   - La fonction construit un email en ajoutant un sujet, un corps de message, ainsi que les adresses des destinataires.
+   - Elle utilise la classe `MIMEMultipart` pour permettre l'ajout d'un fichier en pièce jointe, si nécessaire.
+
+2. **Gestion des destinataires :**
+
+   - La fonction accepte à la fois une seule adresse email sous forme de chaîne de caractères et plusieurs adresses sous forme de liste.
+     Si une seule adresse est fournie, elle est convertie en liste pour uniformiser le traitement des destinataires.
+
+3. **Ajout d'une pièce jointe (facultatif) :**
+
+   - Si un chemin de fichier est fourni dans `log_file`, la fonction vérifie si le fichier existe et l'attache à l'email.
+     Ce fichier, souvent un fichier de log, permet aux administrateurs d'examiner le déroulement du processus d'archivage.
+
+4. **Connexion au serveur SMTP :**
+
+   - La fonction supporte l'envoi d'emails via une connexion sécurisée utilisant soit STARTTLS (TLS), soit SSL. La méthode utilisée dépend de la configuration choisie (`use_tls`).
+   - Les paramètres SMTP (serveur, port, nom d'utilisateur et mot de passe) sont utilisés pour se connecter au serveur de messagerie et authentifier l'envoi de l'email.
+
+5. **Envoi de l'email :**
+
+   - Une fois le message prêt, la fonction utilise `server.sendmail` pour envoyer l'email aux destinataires.
+
+6. **Gestion des erreurs :**
+
+   - En cas d'échec (par exemple, une mauvaise configuration du serveur SMTP ou une erreur d'envoi), la fonction capture l'exception et enregistre une erreur dans le fichier de log.
+     Cela permet de suivre les éventuelles erreurs dans le processus de notification.
+
+7. **Nettoyage :**
+   - Enfin, que l'envoi ait réussi ou échoué, la fonction ferme la connexion SMTP.
 
 ## Processus Principal
 
-Le processus principal d'archivage suit les étapes suivantes :
+Le processus principal d'archivage suit plusieurs étapes séquentielles, permettant de télécharger, comparer, archiver et transférer des fichiers vers un serveur distant via SFTP. Voici les étapes détaillées :
 
-1. Téléchargement d'un fichier zip depuis une URL configurée.
-2. Décompression du fichier zip téléchargé.
-3. Établissement d'une connexion SFTP.
-4. Récupération et comparaison des fichiers SQL locaux et distants.
-5. Création et upload d'une nouvelle archive si des modifications sont détectées.
-6. Suppression des anciens fichiers sur le serveur distant selon la durée de rétention configurée.
-7. Envoi d'emails de notification en cas de succès ou d'échec du processus.
-8. Nettoyage des fichiers temporaires.
+1. **Téléchargement du fichier ZIP**
+
+   - Le processus commence par le téléchargement d'un fichier ZIP depuis une URL configurée, qui est stocké dans une variable.
+     Si le fichier n'est pas disponible ou si le téléchargement échoue, une erreur est loguée et le processus s'arrête.
+
+2. **Décompression du fichier ZIP**
+
+   - Une fois le fichier ZIP téléchargé, il est décompressé dans un dossier temporaire pour extraire son contenu, notamment un fichier SQL à comparer.
+
+3. **Établissement de la connexion SFTP**
+
+   - Le script établit une connexion SFTP avec le serveur distant en utilisant les informations d'authentification configurées (adresse du serveur, port, nom d'utilisateur et mot de passe).
+
+4. **Récupération et comparaison des fichiers**
+
+   - Le fichier SQL téléchargé est comparé à la dernière archive `.tar.gz` disponible sur le serveur distant.
+     Si le fichier local diffère du fichier distant, cela indique une modification dans les fichiers du serveur web.
+
+5. **Création et upload de la nouvelle archive**
+
+   - Si des modifications sont détectées, une nouvelle archive `.tar.gz` est créée avec un nom basé sur la date du jour.
+     Cette archive est ensuite uploadée sur le serveur distant via la connexion SFTP établie.
+
+6. **Suppression des anciens fichiers sur le serveur distant**
+
+   - Si la fonctionnalité de rétention des fichiers est activée, les anciens fichiers présents sur le serveur distant sont supprimés en fonction de la durée de rétention configurée (exprimée en jours).
+
+7. **Envoi d'un email de notification**
+
+   - Une notification est envoyée par email pour indiquer le succès du processus d'archivage et le transfert de la nouvelle archive sur le serveur distant.
+     Si aucune modification n'est détectée, un email distinct indiquant qu'aucune nouvelle archive n'a été créée est envoyé.
+     Il est également possible d'attacher le fichier de log à l'email.
+
+8. **Nettoyage des fichiers temporaires**
+   - À la fin du processus, tous les fichiers temporaires (fichiers ZIP, archives, répertoires extraits) sont supprimés pour éviter l'encombrement du système.
+
+En cas d'erreur à n'importe quelle étape, une notification d'échec est envoyée par email, incluant une description de l'erreur et, éventuellement, le fichier de log pour plus de détails.
 
 ## Organisation du code
 
@@ -118,4 +173,5 @@ Le projet est structuré comme suit :
 
 ## Conclusion
 
-L'automatisation du processus d'archivage permet d'assurer une gestion efficace des fichiers, tout en garantissant la sécurité des transferts et une maintenance minimale grâce à la suppression automatisée des fichiers obsolètes. Les choix de SFTP et de Python permettent de répondre aux exigences de sécurité et de flexibilité.
+L'automatisation du processus d'archivage permet d'assurer une gestion efficace des fichiers, tout en garantissant la sécurité des transferts et une maintenance minimale grâce à la suppression automatisée des fichiers obsolètes.
+Les choix de SFTP et de Python permettent de répondre aux exigences de sécurité et de flexibilité.
