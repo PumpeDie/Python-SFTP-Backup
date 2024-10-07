@@ -1,5 +1,15 @@
 # Documentation Technique
 
+## Justification des choix techniques
+
+### Serveur Web sous Nginx
+
+Quelques lignes
+
+### Serveur distant sous SFTP
+
+Quelques lignes
+
 ## Fonctions
 
 ### `download_file(url, filename)`
