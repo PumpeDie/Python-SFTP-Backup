@@ -1,4 +1,15 @@
-# Documentation Technique
+# Mémoire Technique du Système d'Archivage Automatisé
+
+## Table des matières
+
+1. [Introduction](doc_technique.md#introduction)
+2. [Fonctionnalité du système](doc_technique.md#fonctionnalité-du-système)
+3. [Justification des choix techniques](doc_technique.md#justification-des-choix-techniques)
+4. [Organisation du code](doc_technique.md#organisation-du-code)
+
+## Introduction
+
+## Fonctionnalité du système
 
 ## Justification des choix techniques
 
@@ -14,6 +25,30 @@ SFTP (SSH File Transfer Protocol) est choisi pour son niveau de sécurité élev
 En utilisant SFTP, les fichiers sont transférés via une connexion SSH, garantissant la confidentialité et l'intégrité des données pendant leur transfert et des mécanismes d'authentification forts par des clés SSH, facilitant la mise en place de connexions automatisées sécurisées (cas de notre projet).
 
 De plus, le protocole SFTP est très bien géré sur différents systèmes, ce qui le rend plus portatif.
+
+## Organisation du code
+
+Le projet est structuré comme suit :
+
+- `src/archivage.py`: Contient le script principal qui orchestre l'ensemble du processus.
+- `config/config.ini`: Fichier de configuration pour les paramètres du serveur Web, SFTP et les notifications email.
+- `logs/`: Dossier où les logs d'exécution et de cron sont stockés.
+
+Schéma de l'arborescence du projet :
+
+```bash
+.
+├── config
+│   └── config.ini
+├── docs
+│   ├── doc_technique.md
+│   └── doc_utilisateur.md
+├── logs
+│   └── archive.log
+├── src
+│   └── archivage.py
+└── README.md
+```
 
 ## Fonctions
 
@@ -174,30 +209,6 @@ Le processus principal d'archivage suit plusieurs étapes séquentielles, permet
    - À la fin du processus, tous les fichiers temporaires (fichiers ZIP, archives, répertoires extraits) sont supprimés pour éviter l'encombrement du système.
 
 En cas d'erreur à n'importe quelle étape, une notification d'échec est envoyée par email, incluant une description de l'erreur et, éventuellement, le fichier de log pour plus de détails.
-
-## Organisation du code
-
-Le projet est structuré comme suit :
-
-- `src/archivage.py`: Contient le script principal qui orchestre l'ensemble du processus.
-- `config/config.ini`: Fichier de configuration pour les paramètres du serveur Web, SFTP et les notifications email.
-- `logs/`: Dossier où les logs d'exécution et de cron sont stockés.
-
-Schéma de l'arborescence du projet :
-
-```bash
-.
-├── config
-│   └── config.ini
-├── docs
-│   ├── doc_technique.md
-│   └── doc_utilisateur.md
-├── logs
-│   └── archive.log
-├── src
-│   └── archivage.py
-└── README.md
-```
 
 ## Conclusion
 
