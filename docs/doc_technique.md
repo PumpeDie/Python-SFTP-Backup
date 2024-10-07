@@ -9,9 +9,10 @@ Nginx est très utilisé dans des environnements à forte charge, ce qui en fait
 
 ### Serveur distant sous SFTP
 
-SFTP (SSH File Transfer Protocol) est choisi pour son niveau de sécurité élevé en comparaison aux autres protocoles comme FTP.
-En utilisant SFTP, les fichiers sont transférés via une connexion SSH, garantissant la confidentialité et l'intégrité des données pendant leur transfert.
-Le choix de SFTP permet également d'utiliser des mécanismes d'authentification forts, tels que les clés SSH.
+SFTP (SSH File Transfer Protocol) est choisi pour son niveau de sécurité élevé en comparaison aux autres protocoles comme FTP. Son port unique (22) permet d'éviter les problèmes de pare-feu et simplifie la configuration réseau.
+
+En utilisant SFTP, les fichiers sont transférés via une connexion SSH, garantissant la confidentialité et l'intégrité des données pendant leur transfert et des mécanismes d'authentification forts par des clés SSH, facilitant la mise en place de connexions automatisées sécurisées (cas de notre projet).
+
 De plus, le protocole SFTP est très bien géré sur différents systèmes, ce qui le rend plus portatif.
 
 ## Fonctions
@@ -84,42 +85,16 @@ Cette fonction permet de gérer la rétention des fichiers en évitant l'encombr
 
 ### `send_email(subject, body, to_emails, from_email, log_file=None)`
 
-Cette fonction est chargée d'envoyer des notifications par email, ce qui est essentiel pour informer les utilisateurs des résultats du processus d'archivage (succès, échec ou absence de modifications).
-Elle prend en charge l'envoi d'un email à un ou plusieurs destinataires et peut également inclure un fichier de log en pièce jointe, permettant aux administrateurs de vérifier les détails du processus.
+Envoie un email avec un sujet et un corps spécifiés, et optionnellement attache un fichier de log.
 
-#### Détails de l'implémentation :
+- **Paramètres:**
+  - `subject` (str): Sujet de l'email.
+  - `body` (str): Corps de l'email.
+  - `to_emails` (list): Liste des adresses email des destinataires.
+  - `from_email` (str): Adresse email de l'expéditeur.
+  - `log_file` (str, optionnel): Chemin du fichier de log à attacher.
 
-1. **Création du message :**
-
-   - La fonction construit un email en ajoutant un sujet, un corps de message, ainsi que les adresses des destinataires.
-   - Elle utilise la classe `MIMEMultipart` pour permettre l'ajout d'un fichier en pièce jointe, si nécessaire.
-
-2. **Gestion des destinataires :**
-
-   - La fonction accepte à la fois une seule adresse email sous forme de chaîne de caractères et plusieurs adresses sous forme de liste.
-     Si une seule adresse est fournie, elle est convertie en liste pour uniformiser le traitement des destinataires.
-
-3. **Ajout d'une pièce jointe (facultatif) :**
-
-   - Si un chemin de fichier est fourni dans `log_file`, la fonction vérifie si le fichier existe et l'attache à l'email.
-     Ce fichier, souvent un fichier de log, permet aux administrateurs d'examiner le déroulement du processus d'archivage.
-
-4. **Connexion au serveur SMTP :**
-
-   - La fonction supporte l'envoi d'emails via une connexion sécurisée utilisant soit STARTTLS (TLS), soit SSL. La méthode utilisée dépend de la configuration choisie (`use_tls`).
-   - Les paramètres SMTP (serveur, port, nom d'utilisateur et mot de passe) sont utilisés pour se connecter au serveur de messagerie et authentifier l'envoi de l'email.
-
-5. **Envoi de l'email :**
-
-   - Une fois le message prêt, la fonction utilise `server.sendmail` pour envoyer l'email aux destinataires.
-
-6. **Gestion des erreurs :**
-
-   - En cas d'échec (par exemple, une mauvaise configuration du serveur SMTP ou une erreur d'envoi), la fonction capture l'exception et enregistre une erreur dans le fichier de log.
-     Cela permet de suivre les éventuelles erreurs dans le processus de notification.
-
-7. **Nettoyage :**
-   - Enfin, que l'envoi ait réussi ou échoué, la fonction ferme la connexion SMTP.
+L'envoi d'emails via SMTP permet de notifier l'utilisateur sur le succès ou l'échec de l'archivage.
 
 ## Processus Principal
 
