@@ -69,7 +69,7 @@ crontab -e
 Ajoutez l'entrée suivante pour exécuter la procédure d'archivage tous les jours à 2h du matin :
 
 ```bash
-0 2 * * * /usr/bin/python3 /chemin/vers/script/archivage.py >> /chemin/vers/log/cron.log 2>&1
+0 2 * * * /usr/bin/python3 /chemin/vers/script/archivage.py >> /chemin/vers/logs/cron.log 2>&1
 ```
 
 Pour vérifier que la nouvelle tâche cron a bien été prise en compte, utilisez la commande suivante :

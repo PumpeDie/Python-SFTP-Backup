@@ -4,11 +4,15 @@
 
 ### Serveur Web sous Nginx
 
-Quelques lignes
+Le choix de Nginx comme serveur web repose sur sa capacité à gérer de manière efficace les requêtes HTTP pour servir des fichiers statiques, ainsi que sa fiabilité et sa performance.
+Nginx est très utilisé dans des environnements à forte charge, ce qui en fait un choix robuste pour la gestion des fichiers d'archive.
 
 ### Serveur distant sous SFTP
 
-Quelques lignes
+SFTP (SSH File Transfer Protocol) est choisi pour son niveau de sécurité élevé en comparaison aux autres protocoles comme FTP.
+En utilisant SFTP, les fichiers sont transférés via une connexion SSH, garantissant la confidentialité et l'intégrité des données pendant leur transfert.
+Le choix de SFTP permet également d'utiliser des mécanismes d'authentification forts, tels que les clés SSH.
+De plus, le protocole SFTP est très bien géré sur différents systèmes, ce qui le rend plus portatif.
 
 ## Fonctions
 
@@ -20,6 +24,8 @@ Télécharge un fichier depuis une URL spécifiée et le sauvegarde localement.
   - `url` (str): L'URL du fichier à télécharger.
   - `filename` (str): Le nom du fichier local où le contenu sera sauvegardé.
 
+Le téléchargement est réalisé via le module `requests`, qui permet de gérer les connexions HTTP de manière simple et efficace.
+
 ### `compare_files(file1, file2)`
 
 Compare le contenu de deux fichiers pour vérifier s'ils sont identiques.
@@ -30,6 +36,8 @@ Compare le contenu de deux fichiers pour vérifier s'ils sont identiques.
 - **Retourne:**
   - `bool`: `True` si les fichiers sont identiques, `False` sinon.
 
+Cette fonction est essentielle pour éviter de transférer des fichiers inchangés, optimisant ainsi l'utilisation des ressources.
+
 ### `create_archive(source_dir, output_filename)`
 
 Crée une archive compressée d'un répertoire source.
@@ -37,6 +45,8 @@ Crée une archive compressée d'un répertoire source.
 - **Paramètres:**
   - `source_dir` (str): Chemin du répertoire source à archiver.
   - `output_filename` (str): Nom de l'archive de sortie (sans extension).
+
+L'archivage est réalisé avec `shutil` pour créer un fichier `.tar.gz` de manière simple et portable.
 
 ### `create_sftp_connection(host, port, username, password)`
 
@@ -49,6 +59,8 @@ Crée une archive compressée d'un répertoire source.
   - `password` (str): Mot de passe pour la connexion SFTP.
 - **Retourne:**
   - `tuple`: Un tuple contenant l'objet SFTP et l'objet de transport.
+
+Utilisation de `paramiko` pour gérer la connexion SSH/SFTP de manière sécurisée.
 
 ### `upload_file_sftp(sftp, local_file, remote_path)`
 
@@ -68,6 +80,8 @@ Supprime les fichiers anciens dans un répertoire distant SFTP selon une durée 
   - `directory` (str): Chemin du répertoire distant.
   - `retention_days` (int): Nombre de jours de rétention des fichiers.
 
+Cette fonction permet de gérer la rétention des fichiers en évitant l'encombrement du serveur distant.
+
 ### `send_email(subject, body, to_emails, from_email, log_file=None)`
 
 Envoie un email avec un sujet et un corps spécifiés, et optionnellement attache un fichier de log.
@@ -78,6 +92,8 @@ Envoie un email avec un sujet et un corps spécifiés, et optionnellement attach
   - `to_emails` (list): Liste des adresses email des destinataires.
   - `from_email` (str): Adresse email de l'expéditeur.
   - `log_file` (str, optionnel): Chemin du fichier de log à attacher.
+
+L'envoi d'emails via SMTP permet de notifier l'utilisateur sur le succès ou l'échec de l'archivage.
 
 ## Processus Principal
 
@@ -91,3 +107,15 @@ Le processus principal d'archivage suit les étapes suivantes :
 6. Suppression des anciens fichiers sur le serveur distant selon la durée de rétention configurée.
 7. Envoi d'emails de notification en cas de succès ou d'échec du processus.
 8. Nettoyage des fichiers temporaires.
+
+## Organisation du code
+
+Le projet est structuré comme suit :
+
+- `src/archivage.py`: Contient le script principal qui orchestre l'ensemble du processus.
+- `config/config.ini`: Fichier de configuration pour les paramètres du serveur Web, SFTP et les notifications email.
+- `logs/`: Dossier où les logs d'exécution et de cron sont stockés.
+
+## Conclusion
+
+L'automatisation du processus d'archivage permet d'assurer une gestion efficace des fichiers, tout en garantissant la sécurité des transferts et une maintenance minimale grâce à la suppression automatisée des fichiers obsolètes. Les choix de SFTP et de Python permettent de répondre aux exigences de sécurité et de flexibilité.
