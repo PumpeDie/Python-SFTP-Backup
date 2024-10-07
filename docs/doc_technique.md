@@ -96,6 +96,43 @@ Envoie un email avec un sujet et un corps spécifiés, et optionnellement attach
 
 L'envoi d'emails via SMTP permet de notifier l'utilisateur sur le succès ou l'échec de l'archivage.
 
+## Fichier de configuration
+
+Le fichier `config.ini` contient les paramètres de configuration nécessaires pour le bon fonctionnement du script d'archivage. Voici une explication de chaque variable et comment les configurer :
+
+### [DEFAULT]
+
+- **url**: L'URL du fichier ZIP à télécharger. Par exemple, `https://example.com/archive.zip`.
+- **sql_filename**: Le nom du fichier SQL à extraire du fichier ZIP. Par exemple, `dumpfile.sql`.
+- **retention_days**: Le nombre de jours pendant lesquels les fichiers doivent être conservés sur le serveur distant. Par exemple, `7`.
+- **enable_retention**: Active ou désactive la suppression automatique des anciens fichiers. Utilisez `True` pour activer et `False` pour désactiver.
+
+### [SFTP]
+
+- **host**: L'adresse IP ou le nom de domaine du serveur SFTP. Par exemple, `sftp.example.com`.
+- **port**: Le port utilisé pour la connexion SFTP. Par défaut, `22`.
+- **username**: Le nom d'utilisateur pour la connexion SFTP. Par exemple, `user`.
+- **password**: Le mot de passe pour la connexion SFTP. Par exemple, `password`.
+- **remote_directory**: Le répertoire distant où les fichiers seront uploadés. Par exemple, `data`.
+
+### [EMAIL]
+
+- **enable_email**: Active ou désactive l'envoi d'emails de notification. Utilisez `True` pour activer et `False` pour désactiver.
+- **use_tls**: Active ou désactive l'utilisation de TLS pour la connexion SMTP. Utilisez `True` pour activer et `False` pour désactiver.
+- **smtp_server**: L'adresse du serveur SMTP. Par exemple, `smtp.gmail.com`.
+- **smtp_port**: Le port utilisé pour la connexion SMTP. Par exemple, `465`.
+- **smtp_username**: Le nom d'utilisateur pour la connexion SMTP. Par exemple, `user@gmail.com`.
+- **smtp_password**: Le mot de passe pour la connexion SMTP. Par exemple, `password`.
+- **sender_email**: L'adresse email de l'expéditeur. Par exemple, `user@gmail.com`.
+- **recipient_email**: Les adresses email des destinataires, séparées par des virgules. Par exemple, `recipient1@gmail.com, recipient2@gmail.com`.
+- **subject_success**: Le sujet de l'email en cas de succès. Par exemple, `Sauvegarde réussie`.
+- **subject_failure**: Le sujet de l'email en cas d'échec. Par exemple, `Échec de la sauvegarde`.
+- **attach_log**: Active ou désactive l'attachement du fichier de log à l'email. Utilisez `True` pour activer et `False` pour désactiver.
+
+### [LOGGING]
+
+- **log_file**: Le chemin du fichier de log. Par exemple, `logs/archive.log`.
+
 ## Processus Principal
 
 Le processus principal d'archivage suit plusieurs étapes séquentielles, permettant de télécharger, comparer, archiver et transférer des fichiers vers un serveur distant via SFTP. Voici les étapes détaillées :
