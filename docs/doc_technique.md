@@ -183,6 +183,22 @@ Le projet est structuré comme suit :
 - `config/config.ini`: Fichier de configuration pour les paramètres du serveur Web, SFTP et les notifications email.
 - `logs/`: Dossier où les logs d'exécution et de cron sont stockés.
 
+### Schéma
+
+```bash
+.
+├── config
+│   └── config.ini
+├── docs
+│   ├── doc_technique.md
+│   └── doc_utilisateur.md
+├── logs
+│   └── archive.log
+├── README.md
+└── src
+└── archivage.py
+```
+
 ## Conclusion
 
 L'automatisation du processus d'archivage permet d'assurer une gestion efficace des fichiers, tout en garantissant la sécurité des transferts et une maintenance minimale grâce à la suppression automatisée des fichiers obsolètes.
