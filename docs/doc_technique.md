@@ -89,14 +89,14 @@ Ces modules sont essentiels pour assurer le bon fonctionnement du script, en per
 
 Le fichier `config.ini` contient les paramètres de configuration nécessaires pour le bon fonctionnement du script d'archivage. Voici une explication de chaque variable et comment les configurer :
 
-### [DEFAULT]
+#### [DEFAULT]
 
 - **url**: L'URL du fichier ZIP à télécharger. Par exemple, `https://example.com/archive.zip`.
 - **sql_filename**: Le nom du fichier SQL à extraire du fichier ZIP. Par exemple, `dumpfile.sql`.
 - **retention_days**: Le nombre de jours pendant lesquels les fichiers doivent être conservés sur le serveur distant. Par exemple, `7`.
 - **enable_retention**: Active ou désactive la suppression automatique des anciens fichiers. Utilisez `True` pour activer et `False` pour désactiver.
 
-### [SFTP]
+#### [SFTP]
 
 - **host**: L'adresse IP ou le nom de domaine du serveur SFTP. Par exemple, `sftp.example.com`.
 - **port**: Le port utilisé pour la connexion SFTP. Par défaut, `22`.
@@ -104,7 +104,7 @@ Le fichier `config.ini` contient les paramètres de configuration nécessaires p
 - **password**: Le mot de passe pour la connexion SFTP. Par exemple, `password`.
 - **remote_directory**: Le répertoire distant où les fichiers seront uploadés. Par exemple, `data`.
 
-### [EMAIL]
+#### [EMAIL]
 
 - **enable_email**: Active ou désactive l'envoi d'emails de notification. Utilisez `True` pour activer et `False` pour désactiver.
 - **use_tls**: Active ou désactive l'utilisation de TLS pour la connexion SMTP. Utilisez `True` pour activer et `False` pour désactiver.
@@ -118,13 +118,13 @@ Le fichier `config.ini` contient les paramètres de configuration nécessaires p
 - **subject_failure**: Le sujet de l'email en cas d'échec. Par exemple, `Échec de la sauvegarde`.
 - **attach_log**: Active ou désactive l'attachement du fichier de log à l'email. Utilisez `True` pour activer et `False` pour désactiver.
 
-### [LOGGING]
+#### [LOGGING]
 
 - **log_file**: Le chemin du fichier de log. Par exemple, `logs/archive.log`.
 
 ## Fonctions
 
-### `download_file(url, filename)`
+#### `download_file(url, filename)`
 
 Télécharge un fichier depuis une URL spécifiée et le sauvegarde localement.
 
@@ -134,7 +134,7 @@ Télécharge un fichier depuis une URL spécifiée et le sauvegarde localement.
 
 Le téléchargement est réalisé via le module `requests`, qui permet de gérer les connexions HTTP de manière simple et efficace.
 
-### `compare_files(file1, file2)`
+#### `compare_files(file1, file2)`
 
 Compare le contenu de deux fichiers pour vérifier s'ils sont identiques.
 
@@ -146,7 +146,7 @@ Compare le contenu de deux fichiers pour vérifier s'ils sont identiques.
 
 Cette fonction est essentielle pour éviter de transférer des fichiers inchangés, optimisant ainsi l'utilisation des ressources.
 
-### `create_archive(source_dir, output_filename)`
+#### `create_archive(source_dir, output_filename)`
 
 Crée une archive compressée d'un répertoire source.
 
@@ -156,7 +156,7 @@ Crée une archive compressée d'un répertoire source.
 
 L'archivage est réalisé avec `shutil` pour créer un fichier `.tar.gz` de manière simple et portable.
 
-### `create_sftp_connection(host, port, username, password)`
+#### `create_sftp_connection(host, port, username, password)`
 
 Établit une connexion SFTP avec les informations fournies.
 
@@ -170,7 +170,7 @@ L'archivage est réalisé avec `shutil` pour créer un fichier `.tar.gz` de mani
 
 Utilisation de `paramiko` pour gérer la connexion SSH/SFTP de manière sécurisée.
 
-### `upload_file_sftp(sftp, local_file, remote_path)`
+#### `upload_file_sftp(sftp, local_file, remote_path)`
 
 Upload un fichier local vers un répertoire distant via SFTP.
 
@@ -179,7 +179,7 @@ Upload un fichier local vers un répertoire distant via SFTP.
   - `local_file` (str): Chemin du fichier local à uploader.
   - `remote_path` (str): Chemin distant où le fichier sera uploadé.
 
-### `delete_old_files_sftp(sftp, directory, retention_days)`
+#### `delete_old_files_sftp(sftp, directory, retention_days)`
 
 Supprime les fichiers anciens dans un répertoire distant SFTP selon une durée de rétention spécifiée.
 
@@ -190,7 +190,7 @@ Supprime les fichiers anciens dans un répertoire distant SFTP selon une durée 
 
 Cette fonction permet de gérer la rétention des fichiers en évitant l'encombrement du serveur distant.
 
-### `send_email(subject, body, to_emails, from_email, log_file=None)`
+#### `send_email(subject, body, to_emails, from_email, log_file=None)`
 
 Envoie un email avec un sujet et un corps spécifiés, et optionnellement attache un fichier de log.
 
@@ -247,5 +247,20 @@ En cas d'erreur à n'importe quelle étape, une notification d'échec est envoy�
 
 ## Conclusion
 
-L'automatisation du processus d'archivage permet d'assurer une gestion efficace des fichiers, tout en garantissant la sécurité des transferts et une maintenance minimale grâce à la suppression automatisée des fichiers obsolètes.
-Les choix de SFTP et de Python permettent de répondre aux exigences de sécurité et de flexibilité.
+L'automatisation du processus d'archivage apporte de nombreux avantages, notamment en termes de gain de temps et de réduction des erreurs humaines. En éliminant les interventions manuelles, le système assure une sauvegarde régulière et fiable des données, tout en libérant les ressources humaines pour d'autres tâches.
+
+Le choix de technologies comme _Nginx_ et _SFTP_ contribue à la flexibilité et à la compatibilité multi-plateforme de la solution. _Nginx_, en tant que serveur web performant, permet une gestion efficace des requêtes _HTTP_/_HTTPS_, tandis que _SFTP_ garantit des transferts de fichiers sécurisés sur différents systèmes d'exploitation. De plus, l'utilisation d'un fichier de configuration rend le système facilement adaptable à différents environnements et besoins spécifiques.
+
+#### Perspectives d'évolution
+
+Plusieurs axes d'amélioration peuvent être envisagés pour enrichir et optimiser le système :
+
+- **Intégration d'une interface graphique** : Développer une interface utilisateur conviviale faciliterait la configuration et le suivi du processus d'archivage, rendant l'outil plus accessible aux utilisateurs non techniques.
+
+- **Utilisation de Docker** : La création d'un _Dockerfile_ permettrait de containeriser l'application, assurant une portabilité maximale et simplifiant le déploiement sur différentes infrastructures.
+
+- **Support de multiples protocoles de transfert et de stockage** : Ajouter la compatibilité avec d'autres protocoles tels que _FTPS_, _SCP_ ou _WebDAV_ offrirait davantage de flexibilité pour s'adapter aux infrastructures existantes et aux exigences de sécurité variées.
+
+- **Support pour plusieurs formats d'archivage** : Actuellement, les fichiers sont archivés au format `.tar.gz`. Ajouter le support pour d'autres formats d'archivage tels que `.zip` ou `.7z` offrirait une flexibilité supplémentaire pour des cas d'utilisation spécifiques.
+
+En somme, ce projet pose les bases d'un système d'archivage robuste et extensible, capable de s'adapter aux évolutions futures tout en répondant aux besoins actuels en matière de sécurité et d'efficacité.
