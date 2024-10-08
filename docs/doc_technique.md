@@ -5,12 +5,13 @@
 1. [Introduction](doc_technique.md#introduction)
 2. [Fonctionnalité du système](doc_technique.md#fonctionnalité-du-système)
 3. [Justification des choix techniques](doc_technique.md#justification-des-choix-techniques)
-4. [Organisation du code](doc_technique.md#organisation-du-code)
-5. [Modules importés](doc_technique.md#modules-importés)
-6. [Fichier de configuration](doc_technique.md#fichier-de-configuration)
-7. [Fonctions](doc_technique.md#fonctions)
-8. [Processus Principal](doc_technique.md#processus-principal)
-9. [Conclusion](doc_technique.md#conclusion)
+4. [Organisation du projet](doc_technique.md#organisation-du-projet)
+5. [Organisation du code](doc_technique.md#organisation-du-code)
+6. [Modules importés](doc_technique.md#modules-importés)
+7. [Fichier de configuration](doc_technique.md#fichier-de-configuration)
+8. [Fonctions](doc_technique.md#fonctions)
+9. [Processus Principal](doc_technique.md#processus-principal)
+10. [Conclusion](doc_technique.md#conclusion)
 
 ## Introduction
 
@@ -42,7 +43,7 @@ En utilisant SFTP, les fichiers sont transférés via une connexion SSH, garanti
 
 De plus, le protocole SFTP est très bien géré sur différents systèmes, ce qui le rend plus portatif.
 
-## Organisation du code
+## Organisation du projet
 
 Le projet est structuré comme suit :
 
@@ -65,6 +66,58 @@ Schéma de l'arborescence du projet :
 │   └── archivage.py
 └── README.md
 ```
+
+## Organisation du code
+
+Le code est organisé en plusieurs sections, chacune ayant un rôle spécifique dans le processus d'archivage et de synchronisation des fichiers via SFTP. Voici la description détaillée des différentes parties du code :
+
+### 1. Initialisation et lecture de la configuration
+
+- Utilisation du module `configparser` pour lire les paramètres de configuration depuis le fichier `config.ini`.
+- Ces paramètres incluent les informations relatives aux serveurs (SFTP, SMTP), ainsi que les options d'archivage, de rétention et d'email.
+- Cette approche permet d'adapter facilement le script à différents environnements sans avoir à modifier le code source.
+
+### 2. Gestion des logs
+
+- Le module `logging` est utilisé pour générer un fichier de logs (spécifié dans la configuration).
+- Les logs permettent de suivre le déroulement du processus et de faciliter le débogage en cas d'erreur.
+- Le fichier de logs est également attaché aux emails en cas d'envoi.
+
+### 3. Téléchargement et gestion des fichiers
+
+- **`download_file`** : Télécharge le fichier ZIP depuis une URL distante.
+- **`compare_files`** : Compare deux fichiers pour vérifier si le fichier SQL extrait est identique à celui du serveur distant.
+- **`create_archive`** : Crée une archive `.tar.gz` des fichiers extraits si des modifications sont détectées.
+
+### 4. Connexion SFTP et transfert de fichiers
+
+- **`create_sftp_connection`** : Établit une connexion sécurisée avec le serveur distant via SFTP.
+- **`upload_file_sftp`** : Upload les fichiers locaux vers le serveur distant après la création de l'archive.
+- **`delete_old_files_sftp`** : Supprime les anciens fichiers sur le serveur SFTP en fonction de la durée de rétention configurée.
+
+### 5. Gestion des erreurs et notifications par email
+
+- En cas d'erreur ou de succès, un email est envoyé aux destinataires spécifiés.
+- **`send_email`** : Gère l'envoi des emails pour informer de la réussite ou de l'échec du processus d'archivage, avec la possibilité de joindre le fichier de logs pour plus de détails.
+
+### 6. Nettoyage des fichiers temporaires
+
+- À la fin du processus, le script supprime les fichiers temporaires, tels que les fichiers ZIP téléchargés et les archives créées, ainsi que les dossiers d'extraction.
+- Cela garantit un environnement propre et limite l'encombrement du système.
+
+### 7. Processus principal
+
+- Le processus principal orchestre l'ensemble des opérations, depuis le téléchargement des fichiers jusqu'à la comparaison, la création des archives, et l'envoi des notifications.
+- Il effectue les étapes suivantes :
+  1. Télécharge le fichier ZIP depuis une URL configurée.
+  2. Décompresse le fichier téléchargé.
+  3. Compare les fichiers SQL local et distant pour détecter des modifications.
+  4. Si des changements sont détectés, crée une nouvelle archive et l'upload sur le serveur distant via SFTP.
+  5. Si la rétention est activée, supprime les anciens fichiers sur le serveur SFTP.
+  6. En cas de succès ou d'échec, envoie des notifications par email.
+  7. Nettoie les fichiers temporaires à la fin du processus pour garantir la propreté du système.
+
+Ce processus est structuré de manière à assurer l'archivage sécurisé des fichiers tout en automatisant le suivi des changements et en offrant une gestion simplifiée grâce aux notifications par email.
 
 ## Modules importés
 
@@ -89,14 +142,14 @@ Ces modules sont essentiels pour assurer le bon fonctionnement du script, en per
 
 Le fichier `config.ini` contient les paramètres de configuration nécessaires pour le bon fonctionnement du script d'archivage. Voici une explication de chaque variable et comment les configurer :
 
-#### [DEFAULT]
+### [DEFAULT]
 
 - **url**: L'URL du fichier ZIP à télécharger. Par exemple, `https://example.com/archive.zip`.
 - **sql_filename**: Le nom du fichier SQL à extraire du fichier ZIP. Par exemple, `dumpfile.sql`.
 - **retention_days**: Le nombre de jours pendant lesquels les fichiers doivent être conservés sur le serveur distant. Par exemple, `7`.
 - **enable_retention**: Active ou désactive la suppression automatique des anciens fichiers. Utilisez `True` pour activer et `False` pour désactiver.
 
-#### [SFTP]
+### [SFTP]
 
 - **host**: L'adresse IP ou le nom de domaine du serveur SFTP. Par exemple, `sftp.example.com`.
 - **port**: Le port utilisé pour la connexion SFTP. Par défaut, `22`.
@@ -104,7 +157,7 @@ Le fichier `config.ini` contient les paramètres de configuration nécessaires p
 - **password**: Le mot de passe pour la connexion SFTP. Par exemple, `password`.
 - **remote_directory**: Le répertoire distant où les fichiers seront uploadés. Par exemple, `data`.
 
-#### [EMAIL]
+### [EMAIL]
 
 - **enable_email**: Active ou désactive l'envoi d'emails de notification. Utilisez `True` pour activer et `False` pour désactiver.
 - **use_tls**: Active ou désactive l'utilisation de TLS pour la connexion SMTP. Utilisez `True` pour activer et `False` pour désactiver.
@@ -118,13 +171,13 @@ Le fichier `config.ini` contient les paramètres de configuration nécessaires p
 - **subject_failure**: Le sujet de l'email en cas d'échec. Par exemple, `Échec de la sauvegarde`.
 - **attach_log**: Active ou désactive l'attachement du fichier de log à l'email. Utilisez `True` pour activer et `False` pour désactiver.
 
-#### [LOGGING]
+### [LOGGING]
 
 - **log_file**: Le chemin du fichier de log. Par exemple, `logs/archive.log`.
 
 ## Fonctions
 
-#### `download_file(url, filename)`
+### `download_file(url, filename)`
 
 Télécharge un fichier depuis une URL spécifiée et le sauvegarde localement.
 
@@ -134,7 +187,7 @@ Télécharge un fichier depuis une URL spécifiée et le sauvegarde localement.
 
 Le téléchargement est réalisé via le module `requests`, qui permet de gérer les connexions HTTP de manière simple et efficace.
 
-#### `compare_files(file1, file2)`
+### `compare_files(file1, file2)`
 
 Compare le contenu de deux fichiers pour vérifier s'ils sont identiques.
 
@@ -146,7 +199,7 @@ Compare le contenu de deux fichiers pour vérifier s'ils sont identiques.
 
 Cette fonction est essentielle pour éviter de transférer des fichiers inchangés, optimisant ainsi l'utilisation des ressources.
 
-#### `create_archive(source_dir, output_filename)`
+### `create_archive(source_dir, output_filename)`
 
 Crée une archive compressée d'un répertoire source.
 
@@ -156,7 +209,7 @@ Crée une archive compressée d'un répertoire source.
 
 L'archivage est réalisé avec `shutil` pour créer un fichier `.tar.gz` de manière simple et portable.
 
-#### `create_sftp_connection(host, port, username, password)`
+### `create_sftp_connection(host, port, username, password)`
 
 Établit une connexion SFTP avec les informations fournies.
 
@@ -170,7 +223,7 @@ L'archivage est réalisé avec `shutil` pour créer un fichier `.tar.gz` de mani
 
 Utilisation de `paramiko` pour gérer la connexion SSH/SFTP de manière sécurisée.
 
-#### `upload_file_sftp(sftp, local_file, remote_path)`
+### `upload_file_sftp(sftp, local_file, remote_path)`
 
 Upload un fichier local vers un répertoire distant via SFTP.
 
@@ -179,7 +232,7 @@ Upload un fichier local vers un répertoire distant via SFTP.
   - `local_file` (str): Chemin du fichier local à uploader.
   - `remote_path` (str): Chemin distant où le fichier sera uploadé.
 
-#### `delete_old_files_sftp(sftp, directory, retention_days)`
+### `delete_old_files_sftp(sftp, directory, retention_days)`
 
 Supprime les fichiers anciens dans un répertoire distant SFTP selon une durée de rétention spécifiée.
 
@@ -190,7 +243,7 @@ Supprime les fichiers anciens dans un répertoire distant SFTP selon une durée 
 
 Cette fonction permet de gérer la rétention des fichiers en évitant l'encombrement du serveur distant.
 
-#### `send_email(subject, body, to_emails, from_email, log_file=None)`
+### `send_email(subject, body, to_emails, from_email, log_file=None)`
 
 Envoie un email avec un sujet et un corps spécifiés, et optionnellement attache un fichier de log.
 
