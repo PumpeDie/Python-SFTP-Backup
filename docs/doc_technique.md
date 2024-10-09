@@ -63,7 +63,9 @@ Schéma de l'arborescence du projet :
 ├── logs
 │   └── archive.log
 ├── src
-│   └── archivage.py
+│   ├── archivage.py
+│   ├── crontab
+│   └── run_archivage.sh
 └── README.md
 ```
 

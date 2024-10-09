@@ -58,7 +58,7 @@ pip install paramiko requests
 ## Cron
 
 Les utilisateurs ont la possibilité d'automatiser la procédure d'archivage à l'aide de **Cron**.
-Pour les utilisateurs Linux, il est recommandé d'utiliser un environnement virtuelle Python pour éviter les conflits de dépendance.
+Pour les utilisateurs Linux, il est recommandé d'utiliser un environnement virtuel Python pour éviter les conflits de dépendance.
 
 Pour activer l'automatisation, ouvrez la configuration des tâches cron en utilisant la commande suivante :
 
@@ -69,8 +69,18 @@ crontab -e
 Ajoutez l'entrée suivante pour exécuter la procédure d'archivage tous les jours à 2h du matin :
 
 ```bash
-0 2 * * * /usr/bin/python3 /chemin/vers/script/archivage.py >> /chemin/vers/logs/cron.log 2>&1
+0 2 * * * src/run_archivage.sh
 ```
+
+Le script `run_archivage.sh` doit contenir les commandes suivantes pour activer l'environnement virtuel et exécuter le script Python :
+
+```shell
+cd src
+source venv/bin/activate
+venv/bin/python3 src/src/archivage.py >> log/cron.log 2>&1
+```
+
+Il faut adapter le script à l'environnement d'exécution.
 
 Pour vérifier que la nouvelle tâche cron a bien été prise en compte, utilisez la commande suivante :
 
