@@ -48,6 +48,8 @@ De plus, le protocole SFTP est très bien géré sur différents systèmes, ce q
 Le projet est structuré comme suit :
 
 - `src/archivage.py`: Contient le script principal qui orchestre l'ensemble du processus.
+- `src/crontab`: Contient un exemple de commande bash pour lancer l'automatisation.
+- `src/run_archivage.sh`: Contient un exemple de script pour exécuter l'automatisation.
 - `config/config.ini`: Fichier de configuration pour les paramètres du serveur Web, SFTP et les notifications email.
 - `logs/`: Dossier où les logs d'exécution et de cron sont stockés.
 
