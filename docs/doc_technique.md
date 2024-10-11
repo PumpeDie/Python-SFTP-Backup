@@ -170,7 +170,7 @@ Le fichier `config.ini` contient les paramètres de configuration nécessaires p
 - **smtp_username**: Le nom d'utilisateur pour la connexion SMTP. Par exemple, `user@gmail.com`.
 - **smtp_password**: Le mot de passe pour la connexion SMTP. Par exemple, `password`.
 - **sender_email**: L'adresse email de l'expéditeur. Par exemple, `user@gmail.com`.
-- **recipient_email**: Les adresses email des destinataires, séparées par des virgules. Par exemple, `recipient1@gmail.com, recipient2@gmail.com`.
+- **recipient_email**: Les adresses email des destinataires, séparées par des virgules. Par exemple, `recipient1@domain.com, recipient2@domaine.com`.
 - **subject_success**: Le sujet de l'email en cas de succès. Par exemple, `Sauvegarde réussie`.
 - **subject_failure**: Le sujet de l'email en cas d'échec. Par exemple, `Échec de la sauvegarde`.
 - **attach_log**: Active ou désactive l'attachement du fichier de log à l'email. Utilisez `True` pour activer et `False` pour désactiver.

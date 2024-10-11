@@ -54,6 +54,15 @@ pip install paramiko requests
 - Pour activer la fonctionnalité d'envoi des rapports par mail, régler la variable _*enable_email*_ sur _*True*_.
 - Saisissez votre adresse mail dans la variable _*recipient_email*_. Si vous souhaitez recevoir les rapports sur plusieurs adresses e-mail, séparez-les par des virgules : mail1@domaine.com, mail2@domaine.com, mail3@domaine.com, etc.
 - Si vous souhaitez recevoir uniquement la notification d'échec ou de succès de la sauvegarde (sans le rapport d'exécution), réglez la variable _*attach_log*_ sur False.
+- Configurez les paramètres du serveur SMTP pour l'envoi des emails :
+  - _*smtp_server*_
+  - _*smtp_port*_
+  - _*smtp_username*_
+  - _*smtp_password*_
+  - _*sender_email*_
+- Personnalisé également l'objet en cas de succès ou d'échec du processus :
+  - _*subject_success*_
+  - _*subject_failure*_
 
 ## Cron
 
@@ -77,7 +86,7 @@ Le script `run_archivage.sh` doit contenir les commandes suivantes pour activer 
 ```shell
 cd src
 source venv/bin/activate
-venv/bin/python3 src/src/archivage.py >> log/cron.log 2>&1
+venv/bin/python3 src/archivage.py >> logs/cron.log 2>&1
 ```
 
 Il faut adapter le script à l'environnement d'exécution.
